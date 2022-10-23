@@ -61,8 +61,8 @@ void setup() {
   
   setup_mpu_6050_registers();                                          //Setup the registers of the MPU-6050 (500dfs / +/-8g) and start the gyr
   
-  for (int cal_int = 0; cal_int < 2000 ; cal_int ++){                  //Run this code 2000 times
-    if(cal_int % 125 == 0);                              //Print a dot on the LCD every 125 readings
+  for (int cal_int = 0; cal_int < 4000 ; cal_int ++){                  //Run this code 2000 times
+    //if(cal_int % 125 == 0);                              //Print a dot on the LCD every 125 readings
     read_mpu_6050_data();                                              //Read the raw acc and gyro data from the MPU-6050
     gyro_x_cal += gyro_x;                                              //Add the gyro x-axis offset to the gyro_x_cal variable
     gyro_y_cal += gyro_y;                                              //Add the gyro y-axis offset to the gyro_y_cal variable
@@ -90,9 +90,18 @@ void loop(){
   ang_y += gyro_y * 0.0000611;                                    //Calculate the traveled roll angle and add this to the angle_roll variable
   ang_z += gyro_z * 0.0000611;
 
-  if (abs(ang_x) >= 10){
-    digitalWrite(blue,HIGH);
-    
+  acc_total_vector = sqrt((acc_x*acc_x)+(acc_y*acc_y)+(acc_z*acc_z));  //Calculate the total accelerometer vector
+  //57.296 = 1 / (3.142 / 180) The Arduino asin function is in radians
+  angle_pitch_acc = asin((float)acc_y/acc_total_vector)* 57.296;       //Calculate the pitch angle
+  angle_roll_acc = asin((float)acc_x/acc_total_vector)* -57.296;       //Calculate the roll angle
+
+  ang_x = ang_x * 0.9991 + angle_pitch_acc * 0.0009;     //Correct the drift of the gyro pitch angle with the accelerometer pitch angle
+  ang_y = ang_y * 0.9991 + angle_roll_acc * 0.0009;        //Correct the drift of the gyro roll angle with the accelerometer roll angle
+ 
+  
+  if (90-ang_x <= 10){
+    digitalWrite(blue,HIGH); 
+    Serial.println("Extension Achieved");
   }else{digitalWrite(blue,LOW);
   }
   if (abs(ang_y) >= 10){
@@ -105,12 +114,12 @@ void loop(){
   }else{digitalWrite(white,LOW);
   }
   
-  Serial.println("Gyroscope data in degrees/s: ");
-  Serial.print(ang_x);
-  Serial.print("   ");
-  Serial.print(ang_y);
-  Serial.print("   ");
-  Serial.println(ang_z);
+  Serial.println("Knee angle in degrees: ");
+  Serial.print(90-ang_x);
+  Serial.println("   ");
+  //Serial.print(ang_y);
+  //Serial.print("   ");
+  //Serial.println(ang_z);
 
   while(micros() - loop_timer < 4000);                                 //Wait until the loop_timer reaches 4000us (250Hz) before starting the next loop
   loop_timer = micros();                                               //Reset the loop timer
